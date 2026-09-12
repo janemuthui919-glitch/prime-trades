@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "copy-smartcharts-assets": "node scripts/copy-smartcharts-assets.js",
+    "postinstall": "node scripts/copy-smartcharts-assets.js",
+    "prebuild": "node scripts/copy-smartcharts-assets.js"
   },
   "dependencies": {
     "@deriv-com/translations": "^1.4.7",
@@ -56,7 +59,8 @@
     "tailwindcss-animate": "^1.0.7",
     "undici": "7.29.0",
     "uuid": "11.1.1",
-    "vaul": "^1.1.1"
+    "vaul": "^1.1.1",
+    "@deriv-com/smartcharts-champion": "1.10.8"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",

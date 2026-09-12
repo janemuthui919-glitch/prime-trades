@@ -1,17 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { LiveDigits } from '../components/live-digits';
-import { normalizeAppConfig, type DigitsAppConfig } from '../lib/app-config';
+import { LiveAccumulator } from '../components/live-accumulator';
+import { normalizeAppConfig, type AccumulatorsAppConfig } from '../lib/app-config';
 
 /**
  * Deployed app. Reads the no-code config injected at deploy time
  * (public/app-config.json). When present, the configurable control styles/order
- * are applied; when absent, the standard Digits app renders unchanged. Either
- * way the app is fully functional (real trading + login).
+ * are applied; when absent, the standard Accumulators app renders unchanged.
+ * Either way the app is fully functional (real trading + login).
  */
-export default function DigitsPage() {
-  const [config, setConfig] = useState<DigitsAppConfig | null | undefined>(undefined);
+export default function AccumulatorPage() {
+  const [config, setConfig] = useState<AccumulatorsAppConfig | null | undefined>(undefined);
 
   useEffect(() => {
     let cancelled = false;
@@ -30,5 +30,5 @@ export default function DigitsPage() {
   }, []);
 
   if (config === undefined) return <div className="min-h-dvh bg-background" />;
-  return <LiveDigits appConfig={config ?? undefined} />;
+  return <LiveAccumulator appConfig={config ?? undefined} />;
 }

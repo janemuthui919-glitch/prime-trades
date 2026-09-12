@@ -1,19 +1,21 @@
 'use client';
 
 /**
- * The real, functional Digits app (live WebSocket, real auth/trading), rendered
- * via DigitsView. Optionally takes a no-code `appConfig` to render the
- * configurable control styles/order. Shared by the deployed page and the editor
- * (/edit) so the editor preview is fully live.
+ * The real, functional Accumulators app (live WebSocket, real auth/trading),
+ * rendered via AccumulatorView. Optionally takes a no-code `appConfig` to render
+ * the configurable control styles/order. Shared by the deployed page and the
+ * editor (/edit) so the editor preview is fully live.
  */
 
-import { useDigitsTrading } from '../hooks/use-digits-trading';
+import { useSmartChartsApi } from '@/hooks/use-smartcharts-api';
+import { useSmartChartChartData } from '@/hooks/use-smartchart-chart-data';
+import { useAccumulatorTrading } from '../hooks/use-accumulator-trading';
 import { useDerivWSContext } from '@/components/custom/deriv-ws-provider';
 import { useLogoSrc } from '@/components/custom/logo-src-provider';
-import { DigitsView } from './digits-view';
-import type { DigitsAppConfig } from '../lib/app-config';
+import { AccumulatorView } from './accumulator-view';
+import type { AccumulatorsAppConfig } from '../lib/app-config';
 
-export function LiveDigits({
+export function LiveAccumulator({
   appConfig,
   editMode,
   onSelect,
@@ -24,12 +26,12 @@ export function LiveDigits({
   appName,
   showAppName,
 }: {
-  appConfig?: DigitsAppConfig;
+  appConfig?: AccumulatorsAppConfig;
   editMode?: boolean;
   onSelect?: (key: string) => void;
   selectedKey?: string | null;
   rearrangeMode?: boolean;
-  onReorder?: (order: DigitsAppConfig['order']) => void;
+  onReorder?: (order: AccumulatorsAppConfig['order']) => void;
   /** Override the provider logo — used by the editor to show the previewed logo. */
   logoSrc?: string;
   appName?: string;
@@ -40,7 +42,7 @@ export function LiveDigits({
   const { ws, isConnected, isExhausted, auth } = useDerivWSContext();
   const { authState, accounts, activeAccount, login, signUp, logout, switchAccount } = auth;
 
-  const trading = useDigitsTrading({
+  const trading = useAccumulatorTrading({
     ws,
     isConnected,
     isExhausted,
@@ -48,8 +50,11 @@ export function LiveDigits({
     onAuthWSFailed: logout,
   });
 
+  const { chartData } = useSmartChartChartData(trading.ws, trading.isConnected, trading.symbols);
+  const { getQuotes, subscribeQuotes, unsubscribeQuotes } = useSmartChartsApi(trading.ws);
+
   return (
-    <DigitsView
+    <AccumulatorView
       authState={authState}
       accounts={accounts}
       activeAccount={activeAccount}
@@ -66,28 +71,28 @@ export function LiveDigits({
       symbols={trading.symbols}
       activeSymbol={trading.activeSymbol}
       selectSymbol={trading.selectSymbol}
-      currentTick={trading.currentTick}
-      lastDigit={trading.lastDigit}
-      digitStats={trading.digitStats}
+      prices={trading.prices}
       pipSize={trading.pipSize}
-      tradeType={trading.tradeType}
-      setTradeType={trading.setTradeType}
-      contractMode={trading.contractMode}
-      setContractMode={trading.setContractMode}
-      selectedDigit={trading.selectedDigit}
-      setSelectedDigit={trading.setSelectedDigit}
+      growthRate={trading.growthRate}
+      setGrowthRate={trading.setGrowthRate}
+      growthRateOptions={trading.growthRateOptions}
       stake={trading.stake}
       setStake={trading.setStake}
-      duration={trading.duration}
-      setDuration={trading.setDuration}
-      durationLimits={trading.durationLimits}
+      takeProfit={trading.takeProfit}
+      setTakeProfit={trading.setTakeProfit}
       proposal={trading.proposal}
-      isProposalLoading={trading.isProposalLoading}
       buyContract={trading.buyContract}
       isBuying={trading.isBuying}
       buyResult={trading.buyResult}
       buyError={trading.buyError}
       clearBuyResult={trading.clearBuyResult}
+      openPositions={trading.openPositions}
+      sellContract={trading.sellContract}
+      sellingId={trading.sellingId}
+      chartData={chartData}
+      getQuotes={getQuotes}
+      subscribeQuotes={subscribeQuotes}
+      unsubscribeQuotes={unsubscribeQuotes}
       appConfig={appConfig}
       editMode={editMode}
       onSelect={onSelect}

@@ -1,6 +1,6 @@
-# Digits Trading App
+# Accumulator Options Trading App
 
-A self-hosted digit trading app built on the Deriv WebSocket API. Supports Matches/Differs, Over/Under, and Even/Odd contract types with real-time tick streaming and digit frequency statistics.
+A self-hosted accumulator options trading app built on the Deriv WebSocket API. Your stake grows at a chosen growth rate for every tick the spot price stays within the barrier range.
 
 ## Prerequisites
 

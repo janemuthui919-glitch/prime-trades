@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Localize } from '@deriv-com/translations';
-import { useDigitsTrading } from '../../hooks/use-digits-trading';
+import { useAccumulatorTrading } from '../../hooks/use-accumulator-trading';
 import { useDerivWSContext } from '@/components/custom/deriv-ws-provider';
 import { useLogoSrc } from '@/components/custom/logo-src-provider';
 import { Header } from '@/components/custom/header';
@@ -13,25 +13,13 @@ import { useAppTranslations } from '@/components/custom/i18n-provider';
 import Link from 'next/link';
 import { PositionsTable } from '@/components/custom/positions-table';
 
-const DIGIT_CONTRACT_TYPES = [
-  'DIGITMATCH',
-  'DIGITDIFF',
-  'DIGITOVER',
-  'DIGITUNDER',
-  'DIGITEVEN',
-  'DIGITODD',
-] as const;
+const ACCUMULATOR_CONTRACT_TYPES = ['ACCU'] as const;
 
-function getDigitContractLabels(
+function getAccumulatorContractLabels(
   localize: (text: string) => string
 ): Record<string, string> {
   return {
-    DIGITMATCH: localize('Digit Match'),
-    DIGITDIFF: localize('Digit Differs'),
-    DIGITOVER: localize('Digit Over'),
-    DIGITUNDER: localize('Digit Under'),
-    DIGITEVEN: localize('Digit Even'),
-    DIGITODD: localize('Digit Odd'),
+    ACCU: localize('Accumulator'),
   };
 }
 
@@ -39,10 +27,10 @@ export default function ReportsPage() {
   const logoSrc = useLogoSrc();
   const router = useRouter();
   const { localize } = useAppTranslations();
+  const contractTypeLabels = getAccumulatorContractLabels(localize);
   const { ws, isConnected, isExhausted, auth } = useDerivWSContext();
   const { authState, accounts, activeAccount, login, signUp, logout, switchAccount } = auth;
-  const trading = useDigitsTrading({ ws, isConnected, isExhausted, isAuthenticated: !!auth.wsUrl, onAuthWSFailed: logout });
-  const digitContractLabels = getDigitContractLabels(localize);
+  const trading = useAccumulatorTrading({ ws, isConnected, isExhausted, isAuthenticated: !!auth.wsUrl, onAuthWSFailed: logout });
 
   useEffect(() => {
     if (authState === 'unauthenticated' || authState === 'error') {
@@ -84,16 +72,16 @@ export default function ReportsPage() {
         </Link>
         <PositionsTable
           openPositions={trading.openPositions.filter(p =>
-            (DIGIT_CONTRACT_TYPES as readonly string[]).includes(p.contract_type)
+            (ACCUMULATOR_CONTRACT_TYPES as readonly string[]).includes(p.contract_type)
           )}
           closedPositions={trading.closedPositions.filter(p =>
-            (DIGIT_CONTRACT_TYPES as readonly string[]).includes(p.contract_type)
+            (ACCUMULATOR_CONTRACT_TYPES as readonly string[]).includes(p.contract_type)
           )}
           onSell={trading.sellContract}
           sellingId={trading.sellingId}
           sellError={trading.sellError}
           onClearSellError={trading.clearSellError}
-          contractTypeLabels={digitContractLabels}
+          contractTypeLabels={contractTypeLabels}
           className="mt-0"
         />
       </div>
