@@ -1,6 +1,6 @@
-# Accumulator Options Trading App
+# Rise/Fall Trading App
 
-A self-hosted accumulator options trading app built on the Deriv WebSocket API. Your stake grows at a chosen growth rate for every tick the spot price stays within the barrier range.
+A self-hosted Rise/Fall trading app built on the Deriv WebSocket API. Supports CALL (Rise) and PUT (Fall) contract types with an interactive SmartCharts chart, real-time tick streaming, and open/closed position management.
 
 ## Prerequisites
 

@@ -1,67 +1,78 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { Localize } from '@deriv-com/translations';
 import { toast } from 'sonner';
+import { Localize } from '@deriv-com/translations';
+import { useAppTranslations } from '@/components/custom/i18n-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useAppTranslations } from '@/components/custom/i18n-provider';
-import { LANGUAGE_LOCALES } from '@/lib/i18n';
-import type { BuyResult } from '@deriv/core';
-import type { AccumulatorProposalInfo } from '../hooks/use-accumulator-proposal';
-import type { GrowthRate, OpenPosition } from '../lib/types';
+import { Switch } from '@/components/ui/switch';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { EndTimePicker } from '@/components/custom/end-time-picker';
+import type { DerivWS, ActiveSymbol, ProposalInfo, BuyResult } from '@deriv/core';
+import type { Direction, DurationSelectUnit, DurationOption } from '../lib/types';
 
 interface TradeControlsProps {
-  growthRate: GrowthRate;
-  onGrowthRateChange: (rate: GrowthRate) => void;
-  growthRateOptions: { value: number; label: string }[];
+  direction: Direction;
+  onDirectionChange: (direction: Direction) => void;
+  allowEquals: boolean;
+  onAllowEqualsChange: (value: boolean) => void;
   isConnected: boolean;
   stake: string;
   onStakeChange: (value: string) => void;
-  takeProfit: string;
-  onTakeProfitChange: (value: string) => void;
-  proposal: AccumulatorProposalInfo | null;
+  duration: number;
+  onDurationChange: (value: number) => void;
+  durationOptions: DurationOption[];
+  durationUnit: DurationSelectUnit;
+  onDurationUnitChange: (unit: DurationSelectUnit) => void;
+  endDate: Date | undefined;
+  onEndDateChange: (date: Date | undefined) => void;
+  endTime: string;
+  onEndTimeChange: (time: string) => void;
+  ws: DerivWS | null;
+  activeSymbol: ActiveSymbol | null;
+  proposal: ProposalInfo | null;
+
   onBuy: () => void;
   isBuying: boolean;
   buyResult: BuyResult | null;
   buyError: string | null;
   onClearBuyResult: () => void;
-  /** The currently active accumulator position (only 1 allowed at a time). */
-  activePosition?: OpenPosition | null;
-  /** Callback to sell/close the active position. */
-  onClose?: (contractId: number, bidPrice: string) => void;
-  /** Whether the close/sell action is in progress. */
-  isClosing?: boolean;
   /** Whether the user is authenticated — shows the View your positions link when true. */
   isAuthenticated?: boolean;
 }
 
 export function TradeControls({
-  growthRate,
-  onGrowthRateChange,
-  growthRateOptions,
+  direction,
+  onDirectionChange,
+  allowEquals,
+  onAllowEqualsChange,
   isConnected,
   stake,
   onStakeChange,
-  takeProfit,
-  onTakeProfitChange,
+  duration,
+  onDurationChange,
+  durationOptions,
+  durationUnit,
+  onDurationUnitChange,
+  endDate,
+  onEndDateChange,
+  endTime,
+  onEndTimeChange,
+  ws,
+  activeSymbol,
   proposal,
   onBuy,
   isBuying,
   buyResult,
   buyError,
   onClearBuyResult,
-  activePosition,
-  onClose,
-  isClosing,
   isAuthenticated,
 }: TradeControlsProps) {
-  const { currentLang, localize } = useAppTranslations();
-  const numberLocale = LANGUAGE_LOCALES[currentLang];
+  const { localize } = useAppTranslations();
 
   useEffect(() => {
     if (buyError) {
@@ -86,46 +97,55 @@ export function TradeControls({
     }
   }, [buyResult, onClearBuyResult, localize]);
 
+  const activeOption = durationOptions.find(o => o.unit === durationUnit);
+
+  const endTimeOption = durationOptions.find(o => o.unit === 'end-time');
+  const { endTimeMinDate, endTimeMaxDate } = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return {
+      endTimeMinDate: today,
+      endTimeMaxDate: endTimeOption
+        ? new Date(today.getTime() + endTimeOption.max * 86400000)
+        : new Date(today.getTime() + 365 * 86400000),
+    };
+  }, [endTimeOption]);
+
   return (
-    <div className="w-full space-y-3 lg:max-w-[400px] lg:space-y-4">
-      {/* Growth Rate selector */}
-      <div className="space-y-1.5">
-        <div className="flex items-center gap-1.5">
-          <Label className="text-xs text-muted-foreground">
-            <Localize i18n_default_text="Growth rate" />
-          </Label>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-muted-foreground/40 text-[10px] text-muted-foreground">
-                  i
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-[200px]">
-                <p className="text-xs">
-                  <Localize i18n_default_text="Your stake grows by the selected percentage for each tick that stays within the barrier range." />
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-        <Select
-          value={String(growthRate)}
-          onValueChange={(value) => {
-            onGrowthRateChange(parseFloat(value));
-          }}
+    <div className="w-full space-y-2 lg:max-w-[400px] lg:space-y-4">
+      {/* Rise / Fall direction segmented control */}
+      <ToggleGroup
+        type="single"
+        value={direction}
+        onValueChange={(value) => {
+          if (value === 'CALL' || value === 'PUT') onDirectionChange(value);
+        }}
+        className="w-full gap-0 rounded-full bg-muted p-1"
+      >
+        <ToggleGroupItem
+          value="CALL"
+          className="flex-1 rounded-full text-sm font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-green-600 data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
         >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {growthRateOptions.map((opt) => (
-              <SelectItem key={opt.value} value={String(opt.value)}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Localize i18n_default_text="Rise" />
+        </ToggleGroupItem>
+        <ToggleGroupItem
+          value="PUT"
+          className="flex-1 rounded-full text-sm font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-destructive data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
+        >
+          <Localize i18n_default_text="Fall" />
+        </ToggleGroupItem>
+      </ToggleGroup>
+
+      {/* Allow equals */}
+      <div className="flex items-center justify-between">
+        <Label htmlFor="allow-equals" className="text-sm cursor-pointer">
+          <Localize i18n_default_text="Allow equals" />
+        </Label>
+        <Switch
+          id="allow-equals"
+          checked={allowEquals}
+          onCheckedChange={onAllowEqualsChange}
+        />
       </div>
 
       {/* Stake */}
@@ -147,166 +167,81 @@ export function TradeControls({
         />
       </div>
 
-      {/* Take Profit (optional) */}
+      {/* Duration */}
       <div className="space-y-1.5">
-        <div className="flex items-center gap-1.5">
-          <Label htmlFor="take-profit" className="text-xs text-muted-foreground">
-            <Localize i18n_default_text="Take profit" />
-          </Label>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-muted-foreground/40 text-[10px] text-muted-foreground">
-                  i
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-[200px]">
-                <p className="text-xs">
-                  <Localize i18n_default_text="The contract closes automatically when your profit reaches this amount. Leave empty for no limit." />
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-        <Input
-          id="take-profit"
-          type="number"
-          value={takeProfit}
-          onChange={(e) => onTakeProfitChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
+        <Label className="text-xs text-muted-foreground">
+          <Localize i18n_default_text="Duration" />
+        </Label>
+        <Select
+          value={durationUnit}
+          onValueChange={(v) => {
+            const opt = durationOptions.find(o => o.unit === v);
+            if (opt) onDurationUnitChange(opt.unit);
           }}
-          min={0}
-          step="0.01"
-          placeholder="-"
-          labelRight="USD"
-        />
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {durationOptions.map(opt => (
+              <SelectItem key={opt.unit} value={opt.unit}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {durationUnit !== 'end-time' && (
+          <Input
+            type="number"
+            value={duration}
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10);
+              if (!isNaN(val)) onDurationChange(val);
+            }}
+            min={activeOption?.min}
+            max={activeOption?.max}
+            step={1}
+          />
+        )}
+
+        {durationUnit === 'end-time' && (
+          <EndTimePicker
+            ws={ws}
+            isConnected={isConnected}
+            activeSymbol={activeSymbol}
+            endDate={endDate}
+            onEndDateChange={onEndDateChange}
+            endTime={endTime}
+            onEndTimeChange={onEndTimeChange}
+            minDate={endTimeMinDate}
+            maxDate={endTimeMaxDate}
+          />
+        )}
       </div>
 
-      {/* Contract info summary — skeleton while waiting for proposal */}
-      {!proposal && !activePosition && (
-        <div className="space-y-2.5 rounded-md border border-border bg-muted/30 p-3 animate-pulse">
-          <div className="flex items-center justify-between">
-            <div className="h-3 w-20 rounded bg-muted-foreground/20" />
-            <div className="h-3 w-16 rounded bg-muted-foreground/20" />
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="h-3 w-14 rounded bg-muted-foreground/20" />
-            <div className="h-3 w-12 rounded bg-muted-foreground/20" />
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="h-3 w-24 rounded bg-muted-foreground/20" />
-            <div className="h-3 w-14 rounded bg-muted-foreground/20" />
-          </div>
-        </div>
-      )}
-
-      {/* Contract info summary */}
-      {proposal && !activePosition && (
-        <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-3 text-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">
-              <Localize i18n_default_text="Max. payout" />
-            </span>
-            <span className="font-medium">
-              {proposal.maxPayout.toLocaleString(numberLocale, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}{' '}
-              USD
-            </span>
-          </div>
-          {proposal.barrierPercentage && (
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">
-                <Localize i18n_default_text="Barrier" />
-              </span>
-              <span className="font-medium">{proposal.barrierPercentage}</span>
-            </div>
-          )}
-          {proposal.maxTicks > 0 && (
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">
-                <Localize i18n_default_text="Max. duration" />
-              </span>
-              <span className="font-medium">
-                <Localize
-                  i18n_default_text="{{ticks}} ticks"
-                  values={{ ticks: proposal.maxTicks }}
-                />
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Active position summary — shown when a trade is running */}
-      {activePosition && (
-        <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-3 text-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">
-              <Localize i18n_default_text="Stake" />
-            </span>
-            <span className="font-medium">{parseFloat(activePosition.buy_price).toFixed(2)} {activePosition.currency}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">
-              <Localize i18n_default_text="Current P&L" />
-            </span>
-            <span className={`font-medium ${parseFloat(activePosition.profit) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-              {parseFloat(activePosition.profit) >= 0 ? '+' : ''}{parseFloat(activePosition.profit).toFixed(2)} {activePosition.currency}
-            </span>
-          </div>
-          <div className="flex items-center justify-between border-t border-border pt-1.5">
-            <span className="text-muted-foreground font-medium">
-              <Localize i18n_default_text="Total return" />
-            </span>
-            <span className="font-semibold">
-              {(parseFloat(activePosition.buy_price) + parseFloat(activePosition.profit)).toFixed(2)} {activePosition.currency}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Buy / Close button — inline on desktop, fixed above footer on mobile */}
+      {/* Buy button — inline on desktop, fixed above footer on mobile */}
       <div className="max-lg:fixed max-lg:bottom-[calc(env(safe-area-inset-bottom)+2.5rem)] max-lg:left-3 max-lg:right-3 lg:static">
-        {!activePosition && (
-          <Button
-            className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground"
-            size="lg"
-            disabled={!isConnected || !proposal || isBuying}
-            onClick={onBuy}
-          >
-            {isBuying ? (
-              <Localize i18n_default_text="Purchasing..." />
-            ) : (
-              <Localize i18n_default_text="Buy" />
-            )}
-          </Button>
-        )}
-
-        {activePosition && onClose && (
-          <Button
-            variant="outline"
-            className="w-full rounded-full border-black bg-white text-black hover:bg-white hover:text-black dark:border-white dark:bg-transparent dark:text-white dark:hover:bg-white/10"
-            size="lg"
-            disabled={!isConnected || isClosing || !activePosition.is_valid_to_sell}
-            onClick={() => onClose(activePosition.contract_id, activePosition.bid_price)}
-          >
-            {isClosing ? (
-              <Localize i18n_default_text="Closing..." />
-            ) : (
-              <span className="flex flex-col items-center leading-tight gap-0.5">
-                <span>
-                  <Localize i18n_default_text="Close" />
-                </span>
+        <Button
+          className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground"
+          size="lg"
+          disabled={!isConnected || !proposal || isBuying}
+          onClick={onBuy}
+        >
+          {isBuying ? (
+            <Localize i18n_default_text="Purchasing..." />
+          ) : (
+            <span className="flex flex-col items-center leading-tight gap-0.5">
+              <span><Localize i18n_default_text="Buy" /></span>
+              {proposal && (
                 <span className="text-xs font-normal opacity-90">
-                  {(parseFloat(activePosition.buy_price) + parseFloat(activePosition.profit)).toFixed(2)} {activePosition.currency}
+                  <Localize
+                    i18n_default_text="Payout {{payout}} USD"
+                    values={{ payout: proposal.payout.toFixed(2) }}
+                  />
                 </span>
-              </span>
-            )}
-          </Button>
-        )}
+              )}
+            </span>
+          )}
+        </Button>
       </div>
 
       {/* View your positions — shown when authenticated */}

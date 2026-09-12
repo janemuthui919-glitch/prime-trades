@@ -12,6 +12,10 @@ import '@deriv-com/smartcharts-champion/dist/smartcharts.css';
 import './custom.css';
 
 // SmartCharts declares `font-family: IBM Plex Sans, sans-serif` internally.
+// Loading the font here makes it available to those declarations so the chart
+// renders with its intended typeface instead of falling back to the system
+// sans-serif.  We apply the variable to <body> so the @font-face rules are
+// emitted; SmartCharts resolves the family name automatically.
 const ibmPlexSans = IBM_Plex_Sans({
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700'],
@@ -22,8 +26,8 @@ const ibmPlexSans = IBM_Plex_Sans({
 export function generateMetadata(): Metadata {
   const faviconUri = buildFaviconUri();
   return {
-    title: process.env.NEXT_PUBLIC_DERIV_APP_NAME?.trim() || 'Deriv Accumulators Trading App',
-    description: 'A white-label accumulator trading application powered by Deriv',
+    title: process.env.NEXT_PUBLIC_DERIV_APP_NAME?.trim() || 'Deriv Rise/Fall Trading App',
+    description: 'A white-label trading application powered by Deriv',
     ...(faviconUri ? { icons: { icon: faviconUri } } : {}),
   };
 }
